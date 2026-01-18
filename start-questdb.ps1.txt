@@ -1,0 +1,2 @@
+cd "C:\Users\Dell\questdb-9.2.3-rt-windows-x86-64\bin"
+.\questdb.exe -d E:\questdb-data
