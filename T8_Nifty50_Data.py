@@ -16,7 +16,7 @@ import pickle
 
 
 class UpstoxAuth:
-    """Authentication handler for Upstox API"""
+   
 
     def __init__(self, api_key, api_secret, redirect_uri="https://www.google.com"):
         self.api_key = api_key
@@ -268,33 +268,27 @@ def main():
     print("UPSTOX NIFTY50 LTP COLLECTION (QUESTDB STORAGE)")
     print("="*70)
     
-    # Load credentials
-    load_dotenv()
-    
-    API_KEY = os.getenv('API_KEY')
-    API_SECRET = os.getenv('API_SECRET')
-    
-    if not API_KEY or not API_SECRET:
-        print("❌ Error: API_KEY or API_SECRET not found in .env file!")
-        return
-    
-    print("✅ Credentials loaded from .env file")
-    
-    # Read token from file (shared with option chain script)
+    # Load access token from file
     print("\n" + "="*70)
-    print("📌 AUTHENTICATION")
+    print("LOADING AUTHENTICATION TOKEN")
     print("="*70)
-    
+
     try:
         with open('upstox_token.txt', 'r') as f:
             access_token = f.read().strip()
+        
+        if not access_token:
+            raise ValueError("Token file is empty")
+        
         print("✅ Access token loaded from upstox_token.txt\n")
     except FileNotFoundError:
-        print("❌ Error: upstox_token.txt not found!")
-        print("📝 Please run the Option Chain script first to authenticate")
+        print("❌ ERROR: upstox_token.txt not found!")
+        print("📝 Please run authenticate.py first to generate token")
+        print("   Command: python authenticate.py")
         return
     except Exception as e:
-        print(f"❌ Failed to read token: {e}")
+        print(f"❌ Failed to load token: {e}")
+        print("📝 Please run authenticate.py to generate a fresh token")
         return
     
     # Check weekend

@@ -26,7 +26,6 @@ except ImportError:
 
 
 class UpstoxAuth:
-    """Authentication handler for Upstox API"""
 
     def __init__(self, api_key, api_secret, redirect_uri="https://www.google.com"):
         self.api_key = api_key
@@ -131,7 +130,7 @@ class UpstoxOptionChain:
 
         # MODIFIED: Only select strikes from ATM-10 to ATM (ITM side)
         start_idx = max(0, atm_index - num_strikes)
-        end_idx = atm_index + 1  # Include ATM, exclude OTM
+        end_idx = min(len(all_strikes), atm_index + num_strikes + 1)
         selected_strikes = all_strikes[start_idx:end_idx]
 
         filtered_data = [
@@ -334,9 +333,15 @@ class MarketDataManager:
 
     def _on_error(self, error):
         """Handle WebSocket errors"""
-        print(f"❌ WebSocket error: {error}")
-        import traceback
-        traceback.print_exc()
+        if "401 Unauthorized" in str(error) or "Invalid token" in str(error):
+            print(f"\n❌ WebSocket error: Access token expired/invalid!")
+            print("❌ Please run authenticate.py to generate a fresh token")
+            print("❌ Stopping data collection gracefully...")
+            self.disconnect()
+        else:
+            print(f"❌ WebSocket error: {error}")
+            import traceback
+            traceback.print_exc()
 
     def _on_close(self, close_status_code=None, close_msg=None):
         """Called when WebSocket connection closes"""
@@ -936,48 +941,27 @@ def main():
     print("UPSTOX REAL-TIME OPTION CHAIN (SDK VERSION)")
     print("=" * 70)
 
-        # Step 1: Load credentials from .env
-    load_dotenv()
-    
-    API_KEY = os.getenv('API_KEY')
-    API_SECRET = os.getenv('API_SECRET')
-    
-    if not API_KEY or not API_SECRET:
-        print("❌ Error: API_KEY or API_SECRET not found in .env file!")
-        print("📝 Please create a .env file with:")
-        print("   API_KEY=your_api_key_here")
-        print("   API_SECRET=your_api_secret_here")
-        return
-    
-    print("✅ Credentials loaded from .env file")
-    
-    # Step 2: Generate login URL
-    auth = UpstoxAuth(API_KEY, API_SECRET)
-    login_url = auth.get_login_url()
-
+    # Load access token from file
     print("\n" + "="*70)
-    print("📌 STEP 1: LOGIN TO UPSTOX")
+    print("LOADING AUTHENTICATION TOKEN")
     print("="*70)
-    print("\n🔗 Open this URL in your browser:\n")
-    print(f"    {login_url}\n")
-    print("="*70)
-
-    redirect_url = input("\n🔗 Paste the redirect URL here: ").strip()
 
     try:
-        auth_code = auth.extract_code_from_url(redirect_url)
-        print(f"✅ Auth code extracted")
-
-        access_token = auth.get_access_token(auth_code)
-        print(f"✅ Access token generated")
+        with open('upstox_token.txt', 'r') as f:
+            access_token = f.read().strip()
         
-        # Save token to file for other scripts
-        with open('upstox_token.txt', 'w') as f:
-            f.write(access_token)
-        print(f"✅ Token saved to upstox_token.txt\n")
-
+        if not access_token:
+            raise ValueError("Token file is empty")
+        
+        print("✅ Access token loaded from upstox_token.txt\n")
+    except FileNotFoundError:
+        print("❌ ERROR: upstox_token.txt not found!")
+        print("📝 Please run authenticate.py first to generate token")
+        print("   Command: python authenticate.py")
+        return
     except Exception as e:
-        print(f"❌ Authentication failed: {e}")
+        print(f"❌ Failed to load token: {e}")
+        print("📝 Please run authenticate.py to generate a fresh token")
         return
     
     if is_weekend():
